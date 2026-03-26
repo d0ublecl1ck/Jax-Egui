@@ -102,6 +102,8 @@ struct MemphisApp {
     input_text: String,
     messages: Vec<Message>,
     status_text: String,
+    left_sidebar_collapsed: bool,
+    right_sidebar_collapsed: bool,
 }
 
 impl MemphisApp {
@@ -212,6 +214,8 @@ impl MemphisApp {
                 },
             ],
             status_text: "交互模式已启用".to_owned(),
+            left_sidebar_collapsed: false,
+            right_sidebar_collapsed: false,
         }
     }
 
@@ -260,12 +264,19 @@ impl MemphisApp {
         });
     }
 
-    fn draw_top_bar(&self, ui: &mut Ui) {
+    fn draw_top_bar(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 10.0;
             draw_traffic_lights(ui);
             ui.add_space(6.0);
-            chip(ui, Some(AppIcon::PanelLeft), None, Some(28.0));
+            if icon_chip_button(ui, AppIcon::PanelLeft, self.left_sidebar_collapsed).clicked() {
+                self.left_sidebar_collapsed = !self.left_sidebar_collapsed;
+                self.status_text = if self.left_sidebar_collapsed {
+                    "左侧栏已收起".to_owned()
+                } else {
+                    "左侧栏已展开".to_owned()
+                };
+            }
             chip(ui, Some(AppIcon::HardDrive), Some("1.37 GB"), None);
             icon(ui, AppIcon::ArrowLeft, 14.0);
             icon(ui, AppIcon::ArrowRight, 14.0);
@@ -284,7 +295,15 @@ impl MemphisApp {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 chip(ui, None, Some("/memphis-v2"), Some(126.0));
                 ui.add_space(8.0);
-                chip(ui, Some(AppIcon::PanelLeft), None, Some(28.0));
+                if icon_chip_button(ui, AppIcon::PanelLeft, self.right_sidebar_collapsed).clicked()
+                {
+                    self.right_sidebar_collapsed = !self.right_sidebar_collapsed;
+                    self.status_text = if self.right_sidebar_collapsed {
+                        "右侧栏已收起".to_owned()
+                    } else {
+                        "右侧栏已展开".to_owned()
+                    };
+                }
             });
         });
     }
@@ -440,27 +459,31 @@ impl App for MemphisApp {
             )
             .show(ctx, |ui| self.draw_top_bar(ui));
 
-        SidePanel::left("workspace_sidebar")
-            .exact_width(268.0)
-            .resizable(false)
-            .frame(
-                Frame::new()
-                    .fill(colors::SURFACE)
-                    .inner_margin(Margin::symmetric(16, 12))
-                    .stroke(Stroke::new(1.0, colors::BORDER)),
-            )
-            .show(ctx, |ui| self.draw_left_sidebar(ui));
+        if !self.left_sidebar_collapsed {
+            SidePanel::left("workspace_sidebar")
+                .exact_width(268.0)
+                .resizable(false)
+                .frame(
+                    Frame::new()
+                        .fill(colors::SURFACE)
+                        .inner_margin(Margin::symmetric(16, 12))
+                        .stroke(Stroke::new(1.0, colors::BORDER)),
+                )
+                .show(ctx, |ui| self.draw_left_sidebar(ui));
+        }
 
-        SidePanel::right("files_sidebar")
-            .exact_width(370.0)
-            .resizable(false)
-            .frame(
-                Frame::new()
-                    .fill(colors::PANEL)
-                    .inner_margin(Margin::symmetric(14, 12))
-                    .stroke(Stroke::new(1.0, colors::BORDER)),
-            )
-            .show(ctx, |ui| self.draw_right_sidebar(ui));
+        if !self.right_sidebar_collapsed {
+            SidePanel::right("files_sidebar")
+                .exact_width(370.0)
+                .resizable(false)
+                .frame(
+                    Frame::new()
+                        .fill(colors::PANEL)
+                        .inner_margin(Margin::symmetric(14, 12))
+                        .stroke(Stroke::new(1.0, colors::BORDER)),
+                )
+                .show(ctx, |ui| self.draw_right_sidebar(ui));
+        }
 
         CentralPanel::default()
             .frame(
@@ -559,6 +582,34 @@ fn chip(ui: &mut Ui, icon_kind: Option<AppIcon>, label: Option<&str>, fixed_widt
                 }
             });
         });
+}
+
+fn icon_chip_button(ui: &mut Ui, icon_kind: AppIcon, active: bool) -> egui::Response {
+    let fill = if active {
+        colors::SELECTED
+    } else {
+        colors::PANEL_ALT
+    };
+    let stroke = if active {
+        colors::SELECTED_BORDER
+    } else {
+        colors::BORDER_SOFT
+    };
+
+    Frame::new()
+        .fill(fill)
+        .corner_radius(CornerRadius::same(10))
+        .stroke(Stroke::new(1.0, stroke))
+        .inner_margin(Margin::symmetric(10, 6))
+        .show(ui, |ui| {
+            ui.add_sized(
+                [28.0, 16.0],
+                Button::image(icon_image(icon_kind, 12.0))
+                    .fill(Color32::TRANSPARENT)
+                    .stroke(Stroke::NONE),
+            )
+        })
+        .inner
 }
 
 fn tab_strip(ui: &mut Ui, current_file: &str) {
