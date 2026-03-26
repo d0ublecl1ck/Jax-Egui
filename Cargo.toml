@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-eframe = "0.31"
-egui_extras = { version = "0.31", features = ["all_loaders"] }
+eframe = "0.22"
+egui_extras = { version = "0.22", features = ["image", "svg"] }
+egui-terminal = "0.1.0"
+
+[patch.crates-io]
+egui-terminal = { path = "third_party/egui-terminal-patched" }

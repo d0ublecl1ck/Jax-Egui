@@ -1,25 +1,23 @@
 use eframe::{
     App, CreationContext, NativeOptions,
     egui::{
-        self, Align, Button, CentralPanel, Color32, CornerRadius, Frame, Image, ImageSource,
-        Layout, Margin, RichText, ScrollArea, SidePanel, Stroke, TextEdit, TopBottomPanel, Ui,
-        Vec2, ViewportBuilder,
+        self, Align, Button, CentralPanel, Color32, Frame, Layout, Margin, RichText, Rounding,
+        ScrollArea, SidePanel, Stroke, TextEdit, TopBottomPanel, Ui, Vec2,
     },
 };
+use egui_terminal::{TermHandler, Terminal};
 
 fn main() -> eframe::Result<()> {
     let options = NativeOptions {
-        viewport: ViewportBuilder::default()
-            .with_inner_size([1320.0, 820.0])
-            .with_min_inner_size([1100.0, 720.0])
-            .with_title("memphis-v2"),
+        initial_window_size: Some(Vec2::new(1320.0, 820.0)),
+        min_window_size: Some(Vec2::new(1100.0, 720.0)),
         ..Default::default()
     };
 
     eframe::run_native(
         "memphis-v2",
         options,
-        Box::new(|cc| Ok(Box::new(MemphisApp::new(cc)))),
+        Box::new(|cc| Box::new(MemphisApp::new(cc))),
     )
 }
 
@@ -102,12 +100,12 @@ struct MemphisApp {
     input_text: String,
     messages: Vec<Message>,
     status_text: String,
+    terminal: TermHandler,
 }
 
 impl MemphisApp {
     fn new(cc: &CreationContext<'_>) -> Self {
         configure_visuals(&cc.egui_ctx);
-        egui_extras::install_image_loaders(&cc.egui_ctx);
 
         Self {
             workspaces: vec![
@@ -212,6 +210,7 @@ impl MemphisApp {
                 },
             ],
             status_text: "交互模式已启用".to_owned(),
+            terminal: create_terminal(),
         }
     }
 
@@ -398,7 +397,7 @@ impl MemphisApp {
                 icon(ui, AppIcon::Plus, 14.0);
             });
             ui.add_space(10.0);
-            bottom_panel_content(ui, self.bottom_tab, &self.status_text);
+            bottom_panel_content(ui, self.bottom_tab, &self.status_text, &mut self.terminal);
         });
     }
 
@@ -433,9 +432,9 @@ impl App for MemphisApp {
         TopBottomPanel::top("top_bar")
             .exact_height(42.0)
             .frame(
-                Frame::new()
+                Frame::none()
                     .fill(colors::SURFACE)
-                    .inner_margin(Margin::symmetric(16, 8))
+                    .inner_margin(Margin::symmetric(16.0, 8.0))
                     .stroke(Stroke::new(1.0, colors::BORDER)),
             )
             .show(ctx, |ui| self.draw_top_bar(ui));
@@ -444,9 +443,9 @@ impl App for MemphisApp {
             .exact_width(268.0)
             .resizable(false)
             .frame(
-                Frame::new()
+                Frame::none()
                     .fill(colors::SURFACE)
-                    .inner_margin(Margin::symmetric(16, 12))
+                    .inner_margin(Margin::symmetric(16.0, 12.0))
                     .stroke(Stroke::new(1.0, colors::BORDER)),
             )
             .show(ctx, |ui| self.draw_left_sidebar(ui));
@@ -455,18 +454,18 @@ impl App for MemphisApp {
             .exact_width(370.0)
             .resizable(false)
             .frame(
-                Frame::new()
+                Frame::none()
                     .fill(colors::PANEL)
-                    .inner_margin(Margin::symmetric(14, 12))
+                    .inner_margin(Margin::symmetric(14.0, 12.0))
                     .stroke(Stroke::new(1.0, colors::BORDER)),
             )
             .show(ctx, |ui| self.draw_right_sidebar(ui));
 
         CentralPanel::default()
             .frame(
-                Frame::new()
+                Frame::none()
                     .fill(colors::BACKGROUND)
-                    .inner_margin(Margin::symmetric(20, 12)),
+                    .inner_margin(Margin::symmetric(20.0, 12.0)),
             )
             .show(ctx, |ui| self.draw_center_panel(ui));
     }
@@ -492,37 +491,37 @@ fn configure_visuals(ctx: &egui::Context) {
     ctx.set_style(style);
 }
 
-fn icon_source(icon: AppIcon) -> ImageSource<'static> {
+fn icon_text(icon: AppIcon) -> &'static str {
     match icon {
-        AppIcon::Activity => egui::include_image!("../assets/icons/svg/activity.svg"),
-        AppIcon::PanelLeft => egui::include_image!("../assets/icons/svg/panel-left.svg"),
-        AppIcon::HardDrive => egui::include_image!("../assets/icons/svg/hard-drive.svg"),
-        AppIcon::ArrowLeft => egui::include_image!("../assets/icons/svg/arrow-left.svg"),
-        AppIcon::ArrowRight => egui::include_image!("../assets/icons/svg/arrow-right.svg"),
-        AppIcon::ChevronRight => egui::include_image!("../assets/icons/svg/chevron-right.svg"),
-        AppIcon::ChevronDown => egui::include_image!("../assets/icons/svg/chevron-down.svg"),
-        AppIcon::ListFilter => egui::include_image!("../assets/icons/svg/list-filter.svg"),
-        AppIcon::GitBranch => egui::include_image!("../assets/icons/svg/git-branch.svg"),
-        AppIcon::Folder => egui::include_image!("../assets/icons/svg/folder.svg"),
-        AppIcon::FileText => egui::include_image!("../assets/icons/svg/file-text.svg"),
-        AppIcon::Search => egui::include_image!("../assets/icons/svg/search.svg"),
-        AppIcon::Plus => egui::include_image!("../assets/icons/svg/plus.svg"),
-        AppIcon::Terminal => egui::include_image!("../assets/icons/svg/terminal.svg"),
-        AppIcon::SendHorizontal => egui::include_image!("../assets/icons/svg/send-horizontal.svg"),
-        AppIcon::Settings => egui::include_image!("../assets/icons/svg/settings.svg"),
-        AppIcon::Bot => egui::include_image!("../assets/icons/svg/bot.svg"),
-        AppIcon::UserRound => egui::include_image!("../assets/icons/svg/user-round.svg"),
-        AppIcon::BadgeInfo => egui::include_image!("../assets/icons/svg/badge-info.svg"),
-        AppIcon::Gauge => egui::include_image!("../assets/icons/svg/gauge.svg"),
+        AppIcon::Activity => "A",
+        AppIcon::PanelLeft => "P",
+        AppIcon::HardDrive => "HD",
+        AppIcon::ArrowLeft => "<",
+        AppIcon::ArrowRight => ">",
+        AppIcon::ChevronRight => ">",
+        AppIcon::ChevronDown => "v",
+        AppIcon::ListFilter => "LF",
+        AppIcon::GitBranch => "GB",
+        AppIcon::Folder => "D",
+        AppIcon::FileText => "F",
+        AppIcon::Search => "S",
+        AppIcon::Plus => "+",
+        AppIcon::Terminal => "T",
+        AppIcon::SendHorizontal => "->",
+        AppIcon::Settings => "*",
+        AppIcon::Bot => "B",
+        AppIcon::UserRound => "U",
+        AppIcon::BadgeInfo => "I",
+        AppIcon::Gauge => "G",
     }
 }
 
-fn icon_image(icon: AppIcon, size: f32) -> Image<'static> {
-    Image::new(icon_source(icon)).fit_to_exact_size(Vec2::splat(size))
-}
-
 fn icon(ui: &mut Ui, icon_kind: AppIcon, size: f32) {
-    ui.add(icon_image(icon_kind, size));
+    ui.label(
+        RichText::new(icon_text(icon_kind))
+            .size(size)
+            .color(colors::MUTED),
+    );
 }
 
 fn draw_traffic_lights(ui: &mut Ui) {
@@ -543,11 +542,11 @@ fn draw_traffic_lights(ui: &mut Ui) {
 
 fn chip(ui: &mut Ui, icon_kind: Option<AppIcon>, label: Option<&str>, fixed_width: Option<f32>) {
     let width = fixed_width.unwrap_or(92.0);
-    Frame::new()
+    Frame::none()
         .fill(colors::PANEL_ALT)
-        .corner_radius(CornerRadius::same(10))
+        .rounding(Rounding::same(10.0))
         .stroke(Stroke::new(1.0, colors::BORDER_SOFT))
-        .inner_margin(Margin::symmetric(10, 6))
+        .inner_margin(Margin::symmetric(10.0, 6.0))
         .show(ui, |ui| {
             ui.set_width(width);
             ui.horizontal_centered(|ui| {
@@ -562,11 +561,11 @@ fn chip(ui: &mut Ui, icon_kind: Option<AppIcon>, label: Option<&str>, fixed_widt
 }
 
 fn tab_strip(ui: &mut Ui, current_file: &str) {
-    Frame::new()
+    Frame::none()
         .fill(colors::SURFACE)
-        .corner_radius(CornerRadius::same(10))
+        .rounding(Rounding::same(10.0))
         .stroke(Stroke::new(1.0, colors::BORDER))
-        .inner_margin(Margin::symmetric(14, 8))
+        .inner_margin(Margin::symmetric(14.0, 8.0))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 icon(ui, AppIcon::FileText, 13.0);
@@ -590,11 +589,11 @@ fn workspace_item(ui: &mut Ui, text: &str, selected: bool) -> egui::Response {
         Stroke::NONE
     };
 
-    Frame::new()
+    Frame::none()
         .fill(fill)
-        .corner_radius(CornerRadius::same(8))
+        .rounding(Rounding::same(8.0))
         .stroke(stroke)
-        .inner_margin(Margin::ZERO)
+        .inner_margin(Margin::same(0.0))
         .show(ui, |ui| {
             ui.add_sized(
                 [ui.available_width(), 34.0],
@@ -632,22 +631,19 @@ fn file_row(ui: &mut Ui, text: &str, selected: bool) -> egui::Response {
     } else {
         Color32::TRANSPARENT
     };
-    let icon_kind = if text.starts_with('.') {
-        AppIcon::Folder
-    } else {
-        AppIcon::FileText
-    };
+    let icon_prefix = if text.starts_with('.') { "[D]" } else { "[F]" };
 
-    Frame::new()
+    Frame::none()
         .fill(fill)
-        .corner_radius(CornerRadius::same(6))
-        .inner_margin(Margin::ZERO)
+        .rounding(Rounding::same(6.0))
+        .inner_margin(Margin::same(0.0))
         .show(ui, |ui| {
             ui.add_sized(
                 [ui.available_width(), 34.0],
-                Button::image_and_text(
-                    icon_image(icon_kind, 14.0),
-                    RichText::new(text).color(colors::TEXT).size(14.5),
+                Button::new(
+                    RichText::new(format!("{} {}", icon_prefix, text))
+                        .color(colors::TEXT)
+                        .size(14.5),
                 )
                 .fill(Color32::TRANSPARENT)
                 .stroke(Stroke::NONE),
@@ -657,10 +653,10 @@ fn file_row(ui: &mut Ui, text: &str, selected: bool) -> egui::Response {
 }
 
 fn change_row(ui: &mut Ui, item: &ChangeItem) {
-    Frame::new()
+    Frame::none()
         .fill(colors::PANEL_ALT)
-        .corner_radius(CornerRadius::same(10))
-        .inner_margin(Margin::same(10))
+        .rounding(Rounding::same(10.0))
+        .inner_margin(Margin::same(10.0))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 icon(ui, AppIcon::GitBranch, 14.0);
@@ -679,10 +675,10 @@ fn check_row(ui: &mut Ui, item: &CheckItem) {
         _ => colors::MUTED,
     };
 
-    Frame::new()
+    Frame::none()
         .fill(colors::PANEL_ALT)
-        .corner_radius(CornerRadius::same(10))
-        .inner_margin(Margin::same(10))
+        .rounding(Rounding::same(10.0))
+        .inner_margin(Margin::same(10.0))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(RichText::new(item.name).color(colors::TEXT).size(14.0));
@@ -707,11 +703,16 @@ fn bottom_tab_button(ui: &mut Ui, text: &str, active: bool) -> egui::Response {
     )
 }
 
-fn bottom_panel_content(ui: &mut Ui, bottom_tab: BottomTab, status_text: &str) {
-    Frame::new()
+fn bottom_panel_content(
+    ui: &mut Ui,
+    bottom_tab: BottomTab,
+    status_text: &str,
+    terminal: &mut TermHandler,
+) {
+    Frame::none()
         .fill(colors::PANEL_ALT)
-        .corner_radius(CornerRadius::same(10))
-        .inner_margin(Margin::same(10))
+        .rounding(Rounding::same(10.0))
+        .inner_margin(Margin::same(10.0))
         .show(ui, |ui| match bottom_tab {
             BottomTab::Terminal => {
                 ui.label(
@@ -720,8 +721,13 @@ fn bottom_panel_content(ui: &mut Ui, bottom_tab: BottomTab, status_text: &str) {
                         .size(12.5),
                 );
                 ui.add_space(8.0);
-                icon(ui, AppIcon::Terminal, 14.0);
-                ui.label(RichText::new(status_text).color(colors::SUBTLE).size(13.0));
+                ui.horizontal(|ui| {
+                    icon(ui, AppIcon::Terminal, 14.0);
+                    ui.label(RichText::new(status_text).color(colors::SUBTLE).size(13.0));
+                });
+                ui.add_space(8.0);
+                let terminal_size = Vec2::new(ui.available_width(), 180.0);
+                ui.add_sized(terminal_size, Terminal::new(terminal));
             }
             BottomTab::Setup => {
                 ui.label(RichText::new("Setup").color(colors::TEXT).size(13.5));
@@ -745,11 +751,11 @@ fn bottom_panel_content(ui: &mut Ui, bottom_tab: BottomTab, status_text: &str) {
 }
 
 fn file_preview_panel(ui: &mut Ui, file: &FileEntry) {
-    Frame::new()
+    Frame::none()
         .fill(colors::SURFACE)
-        .corner_radius(CornerRadius::same(12))
+        .rounding(Rounding::same(12.0))
         .stroke(Stroke::new(1.0, colors::BORDER))
-        .inner_margin(Margin::same(14))
+        .inner_margin(Margin::same(14.0))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 icon(ui, AppIcon::FileText, 14.0);
@@ -759,10 +765,10 @@ fn file_preview_panel(ui: &mut Ui, file: &FileEntry) {
                 });
             });
             ui.add_space(10.0);
-            Frame::new()
+            Frame::none()
                 .fill(colors::PANEL)
-                .corner_radius(CornerRadius::same(10))
-                .inner_margin(Margin::same(12))
+                .rounding(Rounding::same(10.0))
+                .inner_margin(Margin::same(12.0))
                 .show(ui, |ui| {
                     ui.label(
                         RichText::new(file.preview)
@@ -796,12 +802,12 @@ fn message_bubble(ui: &mut Ui, message: &Message) {
         ),
     };
 
-    Frame::new()
+    Frame::none()
         .fill(fill)
-        .corner_radius(CornerRadius::same(if message.role == MessageRole::System {
-            14
+        .rounding(Rounding::same(if message.role == MessageRole::System {
+            14.0
         } else {
-            10
+            10.0
         }))
         .stroke(Stroke::new(
             if border == Color32::TRANSPARENT {
@@ -811,7 +817,7 @@ fn message_bubble(ui: &mut Ui, message: &Message) {
             },
             border,
         ))
-        .inner_margin(Margin::same(14))
+        .inner_margin(Margin::same(14.0))
         .show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 icon(ui, bubble_icon, 14.0);
@@ -824,11 +830,11 @@ fn message_bubble(ui: &mut Ui, message: &Message) {
 fn composer(ui: &mut Ui, input_text: &mut String, status_text: &mut String) -> bool {
     let mut should_send = false;
 
-    Frame::new()
+    Frame::none()
         .fill(colors::SURFACE)
-        .corner_radius(CornerRadius::same(12))
+        .rounding(Rounding::same(12.0))
         .stroke(Stroke::new(1.0, colors::BORDER))
-        .inner_margin(Margin::same(16))
+        .inner_margin(Margin::same(16.0))
         .show(ui, |ui| {
             let response = ui.add_sized(
                 [ui.available_width(), 92.0],
@@ -857,9 +863,11 @@ fn composer(ui: &mut Ui, input_text: &mut String, status_text: &mut String) -> b
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     let send_clicked = ui
                         .add(
-                            Button::image(icon_image(AppIcon::SendHorizontal, 15.0))
-                                .fill(colors::INPUT_ACTION)
-                                .corner_radius(CornerRadius::same(8)),
+                            Button::new(
+                                RichText::new(icon_text(AppIcon::SendHorizontal)).size(13.0),
+                            )
+                            .fill(colors::INPUT_ACTION)
+                            .rounding(Rounding::same(8.0)),
                         )
                         .clicked();
                     ui.add_space(8.0);
@@ -875,10 +883,10 @@ fn composer(ui: &mut Ui, input_text: &mut String, status_text: &mut String) -> b
 }
 
 fn footer_pill(ui: &mut Ui, icon_kind: Option<AppIcon>, text: &str) {
-    Frame::new()
+    Frame::none()
         .fill(Color32::TRANSPARENT)
-        .corner_radius(CornerRadius::same(6))
-        .inner_margin(Margin::symmetric(2, 2))
+        .rounding(Rounding::same(6.0))
+        .inner_margin(Margin::symmetric(2.0, 2.0))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 if let Some(icon_kind) = icon_kind {
@@ -887,6 +895,11 @@ fn footer_pill(ui: &mut Ui, icon_kind: Option<AppIcon>, text: &str) {
                 ui.label(RichText::new(text).color(colors::SUBTLE).size(13.0));
             });
         });
+}
+
+fn create_terminal() -> TermHandler {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "zsh".to_owned());
+    TermHandler::new_from_str(&shell)
 }
 
 mod colors {
